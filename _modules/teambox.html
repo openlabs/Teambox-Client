@@ -1,0 +1,594 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>teambox &mdash; Teambox Client v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Teambox Client v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Teambox Client v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for teambox</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Python API for Teambox</span>
+
+<span class="sd">:copyright: (c) 2011 by Openlabs Technologies &amp; Consulting (P) Limited</span>
+<span class="sd">:license: BSD, see LICENSE for more details.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+<span class="kn">import</span> <span class="nn">urllib2</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
+
+
+<div class="viewcode-block" id="RequestWithMethod"><a class="viewcode-back" href="../reference.html#teambox.RequestWithMethod">[docs]</a><span class="k">class</span> <span class="nc">RequestWithMethod</span><span class="p">(</span><span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implementation of urllib2.Request which also takes a method</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_method</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;method&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_method</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_method</span> \
+            <span class="k">else</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="o">.</span><span class="n">get_method</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="BaseAPI"><a class="viewcode-back" href="../reference.html#teambox.BaseAPI">[docs]</a><span class="k">class</span> <span class="nc">BaseAPI</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base implementation of the API</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c">#: The version of teambox api to connect to</span>
+    <span class="n">api_version</span> <span class="o">=</span> <span class="s">&quot;1&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_url</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param username: The username to use for Basic password auth</span>
+<span class="sd">        :param password: The password for Basic auth</span>
+<span class="sd">        :param base_url: URL of teambox installation. Defaults to the hosted</span>
+<span class="sd">                         service at https://teambox.com</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">base_url</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">base_url</span> <span class="o">=</span> <span class="s">&quot;https://teambox.com&quot;</span>
+
+        <span class="n">authorization</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;Accept&#39;</span><span class="p">:</span> <span class="s">&#39;application/json&#39;</span><span class="p">,</span>
+            <span class="s">&#39;Authorization&#39;</span><span class="p">:</span> <span class="s">&quot;Basic </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">authorization</span>
+            <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">base_url</span>
+
+<div class="viewcode-block" id="BaseAPI.make_request"><a class="viewcode-back" href="../reference.html#teambox.BaseAPI.make_request">[docs]</a>    <span class="k">def</span> <span class="nf">make_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send a request</span>
+
+<span class="sd">        .. tip::</span>
+
+<span class="sd">            Use the method below which proxy this method as a restful </span>
+<span class="sd">            interface. See :meth:`post`, :meth:`get`, :meth:`delete` and </span>
+<span class="sd">            :meth:`put`</span>
+
+<span class="sd">        :param resource: resource path without / in beginning</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url_opener</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">build_opener</span><span class="p">(</span>
+            <span class="n">urllib2</span><span class="o">.</span><span class="n">HTTPCookieProcessor</span><span class="p">(),</span>
+            <span class="n">urllib2</span><span class="o">.</span><span class="n">HTTPSHandler</span><span class="p">(),</span>
+            <span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="s">&quot;api/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_version</span><span class="p">,</span> <span class="n">resource</span><span class="p">])</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">RequestWithMethod</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">url_opener</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="BaseAPI.post"><a class="viewcode-back" href="../reference.html#teambox.BaseAPI.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A proxy for :meth:`make_request` which sends a post to given uri</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">urllib</span><span class="o">.</span><span class="n">urlencode</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="BaseAPI.get"><a class="viewcode-back" href="../reference.html#teambox.BaseAPI.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; proxy for :meth:`make_request` which sends a GET to given uri</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_reqeust</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;DELETE&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">resource</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;PUT&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Organization"><a class="viewcode-back" href="../reference.html#teambox.Organization">[docs]</a><span class="k">class</span> <span class="nc">Organization</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Organizations group together :class:`Projects` and :class:`User`s</span>
+<span class="sd">    (via :class:`Membership`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Organization.create"><a class="viewcode-back" href="../reference.html#teambox.Organization.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a new organization</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&quot;organizations&quot;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Organization.index"><a class="viewcode-back" href="../reference.html#teambox.Organization.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent organizations you own or belong to.</span>
+
+<span class="sd">        By default external organizations* aren&#39;t included. They can be</span>
+<span class="sd">        included by adding external=true as a GET parameter</span>
+
+<span class="sd">        *External organization: An organization that owns a project the user</span>
+<span class="sd">                                is in, but he&#39;s not on the organization.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;organizations&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Organization.show"><a class="viewcode-back" href="../reference.html#teambox.Organization.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for a given organization</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">organization</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Organization.update"><a class="viewcode-back" href="../reference.html#teambox.Organization.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates an organization</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">organization</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Membership"><a class="viewcode-back" href="../reference.html#teambox.Membership">[docs]</a><span class="k">class</span> <span class="nc">Membership</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A membership links a User to an Organization.</span>
+
+<span class="sd">    To add people to an organization, make an Invitation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Membership.destroy"><a class="viewcode-back" href="../reference.html#teambox.Membership.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroys a member in the organization. </span>
+
+<span class="sd">        .. tip::</span>
+
+<span class="sd">            You need to be an administrator in the organization for this </span>
+<span class="sd">            to work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/memberships/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Membership.index"><a class="viewcode-back" href="../reference.html#teambox.Membership.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent people in the project.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/memberships&quot;</span> <span class="o">%</span> <span class="n">organization</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Membership.show"><a class="viewcode-back" href="../reference.html#teambox.Membership.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for a person in the project</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/memberships/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Membership.update"><a class="viewcode-back" href="../reference.html#teambox.Membership.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">,</span> <span class="n">role</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates a membership in the project. </span>
+
+<span class="sd">        You need to be an administrator in the organization for this to work.</span>
+
+<span class="sd">        Roles are as follows:</span>
+
+<span class="sd">          * 10 External</span>
+<span class="sd">          * 20 Participant</span>
+<span class="sd">          * 30 Admin</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/memberships/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">membership</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;role&#39;</span><span class="p">:</span> <span class="n">role</span><span class="p">})</span>
+
+</div></div>
+<div class="viewcode-block" id="Project"><a class="viewcode-back" href="../reference.html#teambox.Project">[docs]</a><span class="k">class</span> <span class="nc">Project</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Projects contain most of the objects present in Teambox.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Project.create"><a class="viewcode-back" href="../reference.html#teambox.Project.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">organization</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Routes:</span>
+
+<span class="sd">          * projects</span>
+<span class="sd">          * organizations/:organization_id/projects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/projects&quot;</span> <span class="o">%</span> <span class="n">organization</span> \
+            <span class="k">if</span> <span class="n">organization</span> <span class="k">else</span> <span class="s">&quot;projects&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Project.index"><a class="viewcode-back" href="../reference.html#teambox.Project.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organization</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent projects you own or belong to.</span>
+
+<span class="sd">        .. tip::</span>
+
+<span class="sd">            You can also filter by organization by passing in organization_id. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/projects&quot;</span> <span class="o">%</span> <span class="n">organization</span> \
+            <span class="k">if</span> <span class="n">organization</span> <span class="k">else</span> <span class="s">&quot;projects&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Project.destroy"><a class="viewcode-back" href="../reference.html#teambox.Project.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">organization</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroys a project.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            You must be the owner in order to perform this action.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">project</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">organization</span> <span class="k">else</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Project.show"><a class="viewcode-back" href="../reference.html#teambox.Project.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">organization</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for a given project</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">project</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">organization</span> <span class="k">else</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Project.update"><a class="viewcode-back" href="../reference.html#teambox.Project.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">organization</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates a project</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;organizations/</span><span class="si">%d</span><span class="s">/projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">organization</span><span class="p">,</span> <span class="n">project</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">organization</span> <span class="k">else</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Person"><a class="viewcode-back" href="../reference.html#teambox.Person">[docs]</a><span class="k">class</span> <span class="nc">Person</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A person links a :class:`User` to a :class:`Project`.</span>
+
+<span class="sd">    To add people to a project, make an Invitation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Person.destroy"><a class="viewcode-back" href="../reference.html#teambox.Person.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroys a person in the project. You need to be an administrator</span>
+<span class="sd">        in the project for this to work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/people/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Person.index"><a class="viewcode-back" href="../reference.html#teambox.Person.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent people in the project.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/people&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Person.show"><a class="viewcode-back" href="../reference.html#teambox.Person.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for a person in the project</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/people/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Person.update"><a class="viewcode-back" href="../reference.html#teambox.Person.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>  <span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">,</span> <span class="n">role</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates a person in the project.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            You need to be an administrator in the project for this to work.</span>
+
+<span class="sd">                Roles are as follows:</span>
+
+<span class="sd">                  * 0 Observer</span>
+<span class="sd">                  * 1 Commenter</span>
+<span class="sd">                  * 2 Participant</span>
+<span class="sd">                  * 3 Admin</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/people/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">person</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;role&#39;</span><span class="p">:</span> <span class="n">role</span><span class="p">})</span>
+
+
+<span class="c">#: A proxy object for :class:`Person` as teambox documentation list says </span>
+<span class="c">#: `People` instead of `Person`</span></div></div>
+<span class="n">People</span> <span class="o">=</span> <span class="n">Person</span>
+
+
+<div class="viewcode-block" id="Activity"><a class="viewcode-back" href="../reference.html#teambox.Activity">[docs]</a><span class="k">class</span> <span class="nc">Activity</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An activity is a record of what happened in a :class:`Project`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Activity.index"><a class="viewcode-back" href="../reference.html#teambox.Activity.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">threads</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent activities in the project. </span>
+
+<span class="sd">        Related objects required to reconstruct a Teambox timeline are stored </span>
+<span class="sd">        in references.</span>
+
+<span class="sd">        By default all the activities will be returned, but by providing </span>
+<span class="sd">        `threads=True` as a parameter, comments inside threads won&#39;t be </span>
+<span class="sd">        returned.</span>
+
+<span class="sd">        This is ideal for apps that want to display a compact view of </span>
+<span class="sd">        activities (such as the collapsed view on the web version).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/activities&quot;</span> <span class="o">%</span> <span class="n">project</span> <span class="k">if</span> <span class="n">project</span> \
+            <span class="k">else</span> <span class="s">&quot;activities&quot;</span>
+        <span class="k">if</span> <span class="n">threads</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">?threads=</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="p">(</span><span class="n">threads</span> <span class="ow">and</span> <span class="s">&quot;true&quot;</span> <span class="ow">or</span> <span class="s">&quot;false&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Activity.show"><a class="viewcode-back" href="../reference.html#teambox.Activity.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">activity</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for an activity in the project.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/activities/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">activity</span><span class="p">)</span> \
+            <span class="k">if</span> <span class="n">project</span> <span class="k">else</span> <span class="s">&quot;activities/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">activity</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Comment"><a class="viewcode-back" href="../reference.html#teambox.Comment">[docs]</a><span class="k">class</span> <span class="nc">Comment</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A comment is the core model for communication in Teambox.</span>
+
+<span class="sd">    Comments can belong to a Project, a Conversation, or Task.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Comment.create"><a class="viewcode-back" href="../reference.html#teambox.Comment.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">conversation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a new comment. You can specify the target of the comment using</span>
+<span class="sd">        one of the appropriate routes.</span>
+
+<span class="sd">        For time tracking, simply pass in time taken using the hours parameter.</span>
+<span class="sd">        Acceptable values are the same as on the web frontend -</span>
+<span class="sd">        e.g. 12h, 1.4, 13m, 2:15.</span>
+
+<span class="sd">        Routes:</span>
+
+<span class="sd">          * projects/:project_id/conversations/:conversation_id/comments</span>
+<span class="sd">          * projects/:project_id/tasks/:task_id/comments</span>
+<span class="sd">          * conversations/:conversation_id/comments</span>
+<span class="sd">          * tasks/:task_id/comments</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">((</span><span class="n">conversation</span><span class="p">,</span> <span class="n">task</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Conversion ID or Task ID must be specified&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">conversation</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;conversations/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="n">conversation</span>
+        <span class="k">elif</span> <span class="n">task</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;tasks/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="n">task</span>
+
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="c"># Just prefic the path with Project id</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Comment.destroy"><a class="viewcode-back" href="../reference.html#teambox.Comment.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comment</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroys a comment. You need to be either the owner of the comment,</span>
+<span class="sd">        or an administrator of the target project for this to work.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            This does not completely implement the paths impemented by teambox</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;comments/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">comment</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Comment.index"><a class="viewcode-back" href="../reference.html#teambox.Comment.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">conversation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> 
+            <span class="n">target_type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the most recent comments in a the target.</span>
+
+<span class="sd">        Use the optional target_type parameter to filter tasks by their target </span>
+<span class="sd">        type, which can be either Conversation or Task. For example, to only</span>
+<span class="sd">        view only comments belonging to conversations, you would query</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">project</span> <span class="ow">and</span> <span class="n">task</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/tasks/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">task</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">project</span> <span class="ow">and</span> <span class="n">conversation</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/conversations/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">project</span><span class="p">,</span> <span class="n">conversation</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="n">project</span>
+        <span class="k">elif</span> <span class="n">task</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;tasks/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="n">task</span>
+        <span class="k">elif</span> <span class="n">conversation</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;conversations/</span><span class="si">%d</span><span class="s">/comments&quot;</span> <span class="o">%</span> <span class="n">conversation</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;comments&quot;</span>
+
+        <span class="k">if</span> <span class="n">target_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">target_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;Conversation&quot;</span><span class="p">,</span> <span class="s">&quot;Task&quot;</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">?target_type=</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">target_type</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Comment.show"><a class="viewcode-back" href="../reference.html#teambox.Comment.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comment</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for an comment.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            This does not completely implement the paths impemented by teambox</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;comments/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">comment</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Comment.update"><a class="viewcode-back" href="../reference.html#teambox.Comment.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comment</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the content of a comment. </span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            You can no longer update comments 15 minutes after they have been</span>
+<span class="sd">            created.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;comments/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">comment</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Invitation"><a class="viewcode-back" href="../reference.html#teambox.Invitation">[docs]</a><span class="k">class</span> <span class="nc">Invitation</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An Invitation invites a User to a Project, via email.</span>
+
+<span class="sd">    .. warning::</span>
+
+<span class="sd">        NOT IMPLEMENTED YET</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="Conversation"><a class="viewcode-back" href="../reference.html#teambox.Conversation">[docs]</a><span class="k">class</span> <span class="nc">Conversation</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Conversation is a group of comments.</span>
+
+<span class="sd">    It can also act as a thread in the project overview.</span>
+<span class="sd">    Comments belong to a Project.</span>
+
+<span class="sd">    .. warning::</span>
+
+<span class="sd">        NOT IMPLEMENTED YET</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="TaskList"><a class="viewcode-back" href="../reference.html#teambox.TaskList">[docs]</a><span class="k">class</span> <span class="nc">TaskList</span><span class="p">(</span><span class="n">BaseAPI</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A task list is a collection of Tasks in a Project.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TaskList.archive"><a class="viewcode-back" href="../reference.html#teambox.TaskList.archive">[docs]</a>    <span class="k">def</span> <span class="nf">archive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">task_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Archives the task list. </span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            All tasks belonging to the task list will be updated and resolved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/task_lists/</span><span class="si">%d</span><span class="s">/archive&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">task_list</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;task_lists&quot;</span>
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TaskList.destroy"><a class="viewcode-back" href="../reference.html#teambox.TaskList.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_list</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Destroys a task list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;task_lists/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task_list</span>
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TaskList.index"><a class="viewcode-back" href="../reference.html#teambox.TaskList.index">[docs]</a>    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">archived</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the most recent task lists in a project.</span>
+
+<span class="sd">        .. tip::</span>
+
+<span class="sd">            To filter by archived or unarchived lists, pass in the optional</span>
+<span class="sd">            archived parameter. To view everything, simply omit the archived</span>
+<span class="sd">            parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;task_lists&quot;</span>
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">archived</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">?archived=</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">archived</span> <span class="ow">and</span> <span class="s">&quot;true&quot;</span> <span class="ow">or</span> <span class="s">&quot;false&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TaskList.reorder"><a class="viewcode-back" href="../reference.html#teambox.TaskList.reorder">[docs]</a>    <span class="k">def</span> <span class="nf">reorder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">order</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reorders the task lists in a project according to the order each </span>
+<span class="sd">        task list id is presented in task_list_ids.</span>
+
+<span class="sd">        :param order: List of task_list ids in the order</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/task_lists/reorder&quot;</span> <span class="o">%</span> <span class="n">project</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="p">{</span><span class="s">&#39;task_list_ids&#39;</span><span class="p">:</span> <span class="s">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">order</span><span class="p">)})</span>
+</div>
+<div class="viewcode-block" id="TaskList.show"><a class="viewcode-back" href="../reference.html#teambox.TaskList.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_list</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the data for a task list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;task_lists/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task_list</span>
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TaskList.unarchive"><a class="viewcode-back" href="../reference.html#teambox.TaskList.unarchive">[docs]</a>    <span class="k">def</span> <span class="nf">unarchive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">task_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unarchives the task list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/task_lists/</span><span class="si">%d</span><span class="s">/unarchive&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">task_list</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TaskList.update"><a class="viewcode-back" href="../reference.html#teambox.TaskList.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_list</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">project</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the name, start date and end date of a task list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;task_lists/</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task_list</span>
+        <span class="k">if</span> <span class="n">project</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s">&quot;projects/</span><span class="si">%d</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Teambox Client v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Openlabs Technologies &amp; Consulting (P) Limited.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
