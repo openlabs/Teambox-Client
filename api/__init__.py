@@ -11,23 +11,13 @@ import urllib
 import urllib2
 import base64
 import json
+from itertools import ifilter
 
-__version__ = "0.1"
+from .utils import RequestWithMethod, AutoReferencingList
+
+__version__ = "0.2"
 
 
-class RequestWithMethod(urllib2.Request):
-    """
-    Implementation of urllib2.Request which also takes a method
-    """
-
-    def __init__(self, *args, **kwargs):
-        self._method = kwargs.pop('method', None)
-        urllib2.Request.__init__(self, *args, **kwargs)
-
-    def get_method(self):
-        return (self._method if self._method \
-            else urllib2.Request.get_method(self)
-        )
 
 
 class BaseAPI(object):
@@ -37,6 +27,10 @@ class BaseAPI(object):
 
     #: The version of teambox api to connect to
     api_version = "1"
+
+    #: If the responses have to objectified with the supplementary data
+    #: provided by teambox in certain ocassions
+    objectify = True
 
     def __init__(self, base_url=None, username=None, password=None):
         """
@@ -55,6 +49,24 @@ class BaseAPI(object):
             }
         self.base_url = base_url
 
+    @classmethod
+    def frominstance(cls, instance):
+        """Creates an instance of the api from another instantiacted api
+        """
+        new_instance = cls()
+        new_instance.headers = instance.headers
+        new_instance.base_url = instance.base_url
+        return new_instance 
+
+    def objectify(self, response):
+        """Objectifies data into lazy loading objects which lookup in
+        the reference data attached to the object
+        """
+        if isinstance(response, dict) and ('objects' in response) \
+                and ('references' in response):
+            return AutoReferencingList.from_response(response)
+        return response
+
     def make_request(self, resource, data=None, method=None):
         """
         Send a request
@@ -66,6 +78,8 @@ class BaseAPI(object):
             :meth:`put`
 
         :param resource: resource path without / in beginning
+        :param objectify: A flag to indicate if the response must be 
+                          objectified
         """
         url_opener = urllib2.build_opener(
             urllib2.HTTPCookieProcessor(),
@@ -73,7 +87,11 @@ class BaseAPI(object):
             )
         url = '/'.join([self.base_url, "api/%s" % self.api_version, resource])
         request = RequestWithMethod(url, data, self.headers, method=method)
-        return json.loads(url_opener.open(request).read())
+        response = json.loads(url_opener.open(request).read())
+
+        if not self.objectify:
+            return response
+        return self.objectify(response)
 
     def post(self, resource, data):
         """A proxy for :meth:`make_request` which sends a post to given uri
@@ -91,6 +109,55 @@ class BaseAPI(object):
     def put(self, resource, data):
         return self.make_request(resource, data, method="PUT")
 
+    def filter(self, predicate, *args, **kwargs):
+        """Filter the output based on attributes. 
+
+        .. note ::
+
+            This is not a standard API method but a wrapper over the index
+            call
+
+        :param predicate: A function which takes a specific record as an 
+                          argument and returns True if it should be included 
+                          in the result
+
+        All other positional and keyword arguments are propogated to the
+        index method. If an idnex method does not exist, then an Exception
+        is raised.
+
+        Examples ::
+
+            >>> mem_api = Membership(username="username", password="password")
+            >>> # This will return all  members
+            >>> all_members = mem_api.index(1)
+            >>> # Now to get admin members alone
+            >>> admin_members = mem_api.filter(
+            ...     lambda member: member['role'] == 30, 1)
+            >>> # To see all admin_members
+            >>> list(admin_members)
+
+        .. tip::
+
+            Even nested attributes could be used for filtering. Example:
+
+            Let us filter members by locale, which is an attribute of user_id
+
+        Advanced Example::
+
+            >>> admin_members = mem_api.filter(
+            ...     lambda member: member['user_id']['locale'] == 'en', 1)
+
+
+        .. note::
+
+            Note that filter always returns an iterable object. To view it as
+            a list pass the iterbale as an argument to a list.
+        """
+        if not hasattr(self, 'index'):
+            raise Exception("This API has no index method implemented")
+
+        return ifilter(predicate, self.index(*args, **kwargs))
+
 
 class Organization(BaseAPI):
     """Organizations group together :class:`Projects` and :class:`User`s
@@ -101,7 +168,7 @@ class Organization(BaseAPI):
         """
         return self.post("organizations", data)
 
-    def index(self):
+    def index(self, external=None):
         """Returns the most recent organizations you own or belong to.
 
         By default external organizations* aren't included. They can be
@@ -110,7 +177,10 @@ class Organization(BaseAPI):
         *External organization: An organization that owns a project the user
                                 is in, but he's not on the organization.
         """
-        self.get("organizations")
+        path = "organizations"
+        if external is not None:
+            path = "%s?external=%s" % (path, (external and "true" or "false"))
+        self.get(path)
 
     def show(self, organization):
         """Returns the data for a given organization
