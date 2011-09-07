@@ -25,4 +25,5 @@ project_api.index()
 Documentation
 =============
 
-
+The documentation with source code is hosted on github at
+http://openlabs.github.com/Teambox-Client/
